@@ -2,7 +2,7 @@
 
 ## Overview
 
-ORDS provides a complete OAuth2-based security model for protecting REST endpoints. Access control is defined through **privileges** (which endpoints are protected) and **OAuth2 clients** (which applications/users can access them). ORDS supports OAuth2 client credentials flow (machine-to-machine), authorization code flow (user-facing web applications), and implicit flow. Additionally, ORDS supports external identity providers via JWT profile configuration, enabling integration with Oracle Identity Cloud Service (IDCS), Azure AD, Okta, and other OIDC-compatible providers.
+ORDS provides a complete OAuth2-based security model for protecting REST endpoints. Access control is defined through **privileges** (which endpoints are protected) and **OAuth2 clients** (which applications/users can access them). ORDS supports OAuth2 client credentials flow (machine-to-machine), authorization code flow (user-facing web applications), and implicit flow. Additionally, ORDS supports external identity providers via schema-level or pool-level JWT profiles, enabling integration with Oracle Identity Cloud Service (IDCS), Azure AD, Okta, and other OIDC-compatible providers.
 
 Current ORDS releases use `ORDS_SECURITY` and `ORDS_SECURITY_ADMIN` for OAuth client lifecycle management. The older `OAUTH` and `OAUTH_ADMIN` packages are deprecated and should not be used in new examples.
 
@@ -321,25 +321,110 @@ curl https://myserver.example.com/ords/hr/.well-known/openid-configuration
 
 ## JWT Profile Configuration for External Identity Providers
 
-ORDS can validate JWTs issued by external identity providers (Oracle IDCS, Azure AD, Okta, Keycloak, etc.) without requiring the token to be issued by ORDS itself.
+ORDS can validate JWTs issued by external identity providers (Oracle IDCS, Azure AD, Okta, Keycloak, etc.) without requiring the token to be issued by ORDS itself. In current ORDS releases, the JWT profile feature can be configured in one of two mutually exclusive modes:
 
-### Configure JWT Verification in ORDS
+| Mode | Where it is defined | Scope |
+|---|---|---|
+| `SCHEMA` (default) | Inside a REST-enabled schema via PL/SQL | One JWT profile per schema |
+| `POOL` | In the ORDS pool configuration | One shared JWT profile for all schemas in the pool |
+
+If `security.jwt.profile.mode` is set to `POOL`, ORDS ignores any schema-level JWT profiles for that pool.
+
+### Schema-Level JWT Profile (Default)
+
+Use a schema-level JWT profile when a specific REST-enabled schema needs its own issuer, audience, or JWK definition. A schema-level JWT profile can be either scope-based or role-based.
+
+#### Schema-Level Scope-Based JWT Profile
+
+```sql
+BEGIN
+  ORDS_SECURITY.CREATE_JWT_PROFILE(
+    p_issuer       => 'https://login.microsoftonline.com/{tenant-id}/v2.0',
+    p_audience     => 'api://my-ords-api',
+    p_jwk_url      => 'https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys',
+    p_description  => 'Azure AD JWT profile for HR REST APIs',
+    p_allowed_skew => 30,
+    p_allowed_age  => 3600
+  );
+
+  COMMIT;
+END;
+/
+```
+
+In a schema-level scope-based JWT profile, the access token must provide a `scope` or `scp` claim containing the ORDS privilege names protecting the resource.
+
+#### Schema-Level Role-Based JWT Profile (RBAC)
+
+Use `p_role_claim_name` when the token carries ORDS roles instead of ORDS privilege scopes.
+
+```sql
+BEGIN
+  ORDS_SECURITY.DELETE_JWT_PROFILE;
+
+  ORDS_SECURITY.CREATE_JWT_PROFILE(
+    p_issuer          => 'https://login.microsoftonline.com/{tenant-id}/v2.0',
+    p_audience        => 'api://my-ords-api',
+    p_jwk_url         => 'https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys',
+    p_role_claim_name => '/roles',
+    p_description     => 'Azure AD schema-level JWT profile RBAC for HR REST APIs',
+    p_allowed_skew    => 30,
+    p_allowed_age     => 3600
+  );
+
+  COMMIT;
+END;
+/
+```
+
+In a schema-level role-based JWT profile, the claim at `p_role_claim_name` must resolve to a JSON array of ORDS role names.
+
+Only one JWT profile can exist per schema. To replace it, delete the existing profile and recreate it. If you need to manage the JWT profile for a different REST-enabled schema, use `ORDS_SECURITY_ADMIN.CREATE_JWT_PROFILE` and `ORDS_SECURITY_ADMIN.DELETE_JWT_PROFILE` with `p_schema`.
+
+### Pool-Level JWT Profile
+
+Use a pool-level JWT profile when every REST-enabled schema in the pool should trust the same issuer and audience. A pool-level JWT profile can also be either scope-based or role-based.
+
+#### Pool-Level Scope-Based JWT Profile
 
 ```shell
-# Set the trusted issuer and JWKS URI
-ords --config /opt/oracle/ords/config config set \
-  security.jwt.allowedAge 3600
+# Configure a shared scope-based JWT profile for the target pool
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.mode POOL
 
-# Add a JWT profile
-ords --config /opt/oracle/ords/config config secret --global \
-  jwt.verifier.1.issuer "https://login.microsoftonline.com/{tenant-id}/v2.0"
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.issuer "https://login.microsoftonline.com/{tenant-id}/v2.0"
 
-ords --config /opt/oracle/ords/config config secret --global \
-  jwt.verifier.1.jwksUri "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys"
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.jwk.url "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys"
 
-ords --config /opt/oracle/ords/config config secret --global \
-  jwt.verifier.1.audience "api://my-ords-api"
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.audience "api://my-ords-api"
 ```
+
+In a pool-level scope-based JWT profile, do not set `security.jwt.profile.role.claim.name`. The access token must provide a `scope` or `scp` claim containing the ORDS privilege names protecting the resource.
+
+#### Pool-Level Role-Based JWT Profile (RBAC)
+
+```shell
+# Configure a shared role-based JWT profile for the target pool
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.mode POOL
+
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.issuer "https://login.microsoftonline.com/{tenant-id}/v2.0"
+
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.jwk.url "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys"
+
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.audience "api://my-ords-api"
+
+ords --config /opt/oracle/ords/config config --db-pool default set \
+  security.jwt.profile.role.claim.name /roles
+```
+
+In a pool-level role-based JWT profile, `security.jwt.profile.role.claim.name` must point to a JSON array of ORDS role names.
 
 Once configured, clients send JWTs from Azure AD as Bearer tokens and ORDS validates them:
 
@@ -350,13 +435,19 @@ Authorization: Bearer <Azure AD JWT>
 
 ### Mapping JWT Claims to ORDS Roles
 
-Configure ORDS to map JWT claims (e.g., `groups` or `roles` claims) to ORDS roles:
+JWT-to-ORDS-role mapping is available in both modes. Use a valid JSON pointer to the role claim, such as `/roles` or `/resource_access/account/roles`:
 
-```shell
-ords --config /opt/oracle/ords/config config set --global jwt.claimRole roles
-```
+- Schema-level RBAC: set `p_role_claim_name` in `ORDS_SECURITY.CREATE_JWT_PROFILE` or `ORDS_SECURITY_ADMIN.CREATE_JWT_PROFILE`.
+- Pool-level RBAC: set `security.jwt.profile.role.claim.name` in the ORDS pool configuration.
 
 When ORDS sees a JWT with `"roles": ["HR_ADMIN"]`, it maps this to the `HR_ADMIN` ORDS role, granting access to privileges requiring that role.
+
+### Authorization Model Summary
+
+| Mode | Scope-Based | Role-Based (RBAC) |
+|---|---|---|
+| Schema-level | Create the JWT profile without `p_role_claim_name`; the token's `scope` or `scp` claim must contain ORDS privilege names. | Create the JWT profile with `p_role_claim_name`; the pointed claim must contain ORDS role names. |
+| Pool-level | Configure the pool JWT profile without `security.jwt.profile.role.claim.name`; the token's `scope` or `scp` claim must contain ORDS privilege names. | Configure the pool JWT profile with `security.jwt.profile.role.claim.name`; the pointed claim must contain ORDS role names. |
 
 ---
 
@@ -432,6 +523,8 @@ END;
 
 ## Sources
 
-- [ORDS Developer's Guide — Securing Oracle REST Data Services](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/24.2/orddg/about-oracle-rest-data-services.html)
-- [Oracle REST Data Services PL/SQL API Reference — ORDS, ORDS_SECURITY, and ORDS_SECURITY_ADMIN](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/25.3/orddg/ORDS-reference.html)
+- [ORDS Developer's Guide — Developing Oracle REST Data Services Applications](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/25.3/orddg/developing-REST-applications.html)
+- [ORDS Installation and Configuration Guide — About the Oracle REST Data Services Configuration Files](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/25.3/ordig/about-REST-configuration-files.html)
+- [ORDS_SECURITY PL/SQL Package Reference](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/25.2/orddg/ords_security-pl-sql-package-reference.html)
+- [ORDS_SECURITY_ADMIN PL/SQL Package Reference](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/24.4/orddg/ords_security_admin-pl-sql-package.html)
 - [ORDS OAuth2 Client Credentials Flow](https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/24.2/orddg/rest-enabled-sql-service.html)
