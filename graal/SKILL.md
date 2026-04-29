@@ -1,3 +1,8 @@
+---
+name: graal
+description: Build, configure, and troubleshoot GraalVM Native Image applications. Use this skill for native-image CLI builds, Maven or Gradle Native Build Tools, reachability metadata, and build or run time issue diagnosis.
+---
+
 # Oracle Graal Skills
 
 Use this domain to build, configure, and troubleshoot GraalVM Native Image applications with Maven, Gradle, or the CLI.
