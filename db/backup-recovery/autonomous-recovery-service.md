@@ -658,3 +658,19 @@ Use this checklist for a new OCI or Oracle Multicloud database protection setup.
 | Protected health metric values | `0` Protected, `1` Warning, `2` Alert |
 | Real-time data protection threshold | Data loss exposure under `10` seconds |
 | Non-real-time healthy threshold | Data loss exposure under `120` minutes |
+
+---
+
+## Sources
+
+- [Using Oracle Database Autonomous Recovery Service](https://docs.oracle.com/en/cloud/paas/recovery-service/dbrsu/using-oracle-database-autonomous-recovery-service.pdf)
+- [Database Autonomous Recovery Service](https://docs.oracle.com/en-us/iaas/recovery-service/index.html)
+- [Recovery Service Terminology](https://docs.oracle.com/en-us/iaas/recovery-service/doc/recovery-service-concepts.html)
+- [Onboarding Oracle Database to Recovery Service](https://docs.oracle.com/en-us/iaas/recovery-service/doc/getting-started-recovery-service.html)
+- [Backing Up Oracle Cloud Databases to Recovery Service](https://docs.oracle.com/en-us/iaas/recovery-service/doc/automatic-backup-recovery-service.html)
+- [About Configuring Protection Policies](https://docs.oracle.com/iaas/recovery-service/doc/overview-protection-policy.html)
+- [Backup Retention](https://docs.oracle.com/en-us/iaas/recovery-service/doc/backup-retention.html)
+- [Managing Protected Databases](https://docs.oracle.com/en-us/iaas/recovery-service/doc/recovery-system.html)
+- [Using the API to Manage Recovery Service Resources](https://docs.oracle.com/en-us/iaas/recovery-service/doc/using-api-recovery-service.html)
+- [Recovery Service Metrics](https://docs.oracle.com/iaas/recovery-service/doc/recovery-service-metrics.html)
+- [About Recovery Service Resource Types](https://docs.oracle.com/en-us/iaas/recovery-service/doc/supported-recovery-service-policies.html)
