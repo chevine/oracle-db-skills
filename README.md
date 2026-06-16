@@ -10,6 +10,7 @@ Install a domain by appending the root-level domain directory to the repository 
 
 ```bash
 npx skills add oracle/skills/db
+npx skills add oracle/skills/oci
 npx skills add oracle/skills/graal
 ...
 ```
@@ -47,7 +48,7 @@ Browse and toggle installed plugins anytime with `/plugin`. Enabled plugins are 
 ## Domains
 
 - `db/` is the active Oracle Database domain and includes database, ORDS, SQLcl, framework, container, and agent workflow skills.
-- `oci/` contains Oracle Cloud Infrastructure skills, starting with OCI Kubernetes Engine cluster design, troubleshooting, Generic VNIC Attachment, and Multus pod networking.
+- `oci/` contains Oracle Cloud Infrastructure skills, including OCI Kubernetes Engine cluster design and troubleshooting plus Enterprise AI guidance for OCI Generative AI, agents, RAG, governance, model endpoints, Autonomous Database, APEX, and integrations.
 - `fusion/` is the root for future Oracle Fusion skills.
 - `apex/` is the root for future Oracle APEX skills.
 - `graal/` contains GraalVM skills, starting with Native Image.
@@ -94,6 +95,14 @@ Browse and toggle installed plugins anytime with `/plugin`. Enabled plugins are 
 │       └── troubleshooting.md
 └── oci/
     ├── SKILL.md
+    ├── enterprise-ai/
+    │   ├── SKILL.md
+    │   ├── models/
+    │   ├── agent-workflows/
+    │   ├── governance/
+    │   ├── data/
+    │   ├── cost/
+    │   └── integrations/
     └── oke/
         ├── cluster-design.md
         ├── troubleshooting.md
